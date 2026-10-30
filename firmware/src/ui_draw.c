@@ -314,16 +314,8 @@ static void graph_scale(const track_t *t, uint16_t c)
     }
 }
 
-static void graph_fx(const track_t *t, uint16_t c)
-{
-    uint32_t i;
-    for (i = 0; i < 4u; i++) {
-        int32_t h = t->p[P_DIST + i] * 80 / 127, x = (int32_t)i * 60 + 28;
-        cv_rect(x, 10, 1, 80, C_LINE);
-        cv_rect(x, 90 - h, 1, h, c);
-        cv_rect(x - 3, 90 - h, 7, 1, c);
-    }
-}
+#include "ui_cow.c"                                  /* the COW FX pages */
+static void graph_fx(const track_t *t, uint16_t c) { graph_cow_fx(t, c); }   /* (was four bars) */
 /* SLICER page: the pattern's 16 steps, a 'x' step a full bar; a '.' step: GATE a bar as high as
  * it stays open (DEPTH), STUT hatched (it repeats the last 'x'); the step playing underlined.
  * Grey when the SLICER is OFF. */
@@ -385,6 +377,8 @@ static uint32_t graph_signature(void)
     if (ui.home)
         return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
     h ^= (uint32_t)pg->graph * 131u + TSEL->eng_req + song.sel * 7777u;
+    if (pg->graph == GR_FX || pg->graph == GR_CDLY || pg->graph == GR_CREV)
+        h ^= (fm1_ms / 60u) * 2654435761u + (uint32_t)song.playing * 977u;   /* the cow moves */
     for (i = 0; i < P_COUNT; i++)
         h = (h ^ (uint32_t)t->p[i]) * 16777619u;
     h ^= (uint32_t)TSEL->preset * 7u + (uint32_t)song.g[G_SLOT] * 13u + TSEL->user * 257u + up_gen * 7919u + ui.uslot * 104729u;
@@ -726,6 +720,12 @@ static void draw_graph(void)
             break;
         case GR_FX:
             graph_fx(t, c);
+            break;
+        case GR_CDLY:
+            graph_cow_dly(t, c);
+            break;
+        case GR_CREV:
+            graph_cow_rev(t, c);
             break;
         case GR_SLCR:
             graph_slicer(t, c);

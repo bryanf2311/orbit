@@ -262,7 +262,7 @@ static void ui_leds(void)
     led_put(nl, panel.btn[B_PLAY], play_led() || (song.playing && !song.rec && ft_on) ||
                                       (ci_on && ci_u % BEAT_U < BEAT_U / 4u));   /* (the count-in's beats) */
     led_put(nl, panel.btn[B_REC], song.rec != 0u || ft_on || (rec_wait && ((fm1_ms / 125u) & 1u)) ||
-                                     (ui.hold_kind == 1u && ((fm1_ms / 60u) & 1u)));   /* blinks: armed; fast: clearing */
+                                     ((ui.hold_kind == 1u || ui.hold_kind == 3u) && ((fm1_ms / 60u) & 1u)));   /* blinks: armed; fast: clearing */
     if (ui.layer == LY_FX) {                       /* FX: OCT- / OCT+ lit while REV / ECHO THROW (2.6) */
         led_put(nl, panel.btn[B_OCTDN], (thr_req & 1u) != 0u);
         led_put(nl, panel.btn[B_OCTUP], (thr_req & 2u) != 0u);
@@ -1075,6 +1075,31 @@ static void holds_input(uint32_t pressed, uint32_t now_ms)
         ui.hold_trk = song.sel;
         ui.force = 1;
     }
+    /* REC and SAVE held together: a new project (the clear ring turns into the NEW ring) */
+    if (ui.hold_kind == 1u && rec_down && save_down) {
+        ui.hold_kind = 3;
+        ui.hold_t0 = now_ms;
+        ui.force = 1;
+    }
+    if (ui.hold_kind == 3u) {
+        if (!rec_down || !save_down) {
+            ui.hold_kind = 0;                             /* let go before the end: nothing */
+            ui.force = 1;
+        } else if (now_ms - ui.hold_t0 >= HOLD_NEW_MS) {
+            ui.hold_kind = 0;
+            rec_on = 0;
+            ui.force = 1;
+#if FELUCCA_ARRANGER
+            if (song.playing && arrangement_enabled)
+                ui_message("STOP THE SONG FIRST");
+            else
+#endif
+            {
+                project_new();
+                ui_message("NEW PROJECT");
+            }
+        }
+    }
     if (ui.hold_kind == 1u && rec_down && now_ms - ui.hold_t0 >= HOLD_CLEAR_MS) {
         track_t *t = &trk[ui.hold_trk % NTRK];
         char b[12] = "1 CLEARED";
@@ -1097,7 +1122,7 @@ static void holds_input(uint32_t pressed, uint32_t now_ms)
         }
         rec_on = 0;
     }
-    (void)sb, (void)save_down, (void)save_on, (void)save_t0;   /* (SAVE is a layer now: ui_layers.c) */
+    (void)sb, (void)save_on, (void)save_t0;                    /* (SAVE is a layer now: ui_layers.c) */
 }
 
 #include "ctrl.c"                                       /* MIDI CONTROLLER mode (ORBIT) */

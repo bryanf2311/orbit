@@ -1,0 +1,38 @@
+name: firmware
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install Pillow
+      - name: JieLi toolchain
+        run: sh tools/get_toolchain.sh "$HOME/.jieli"
+      - name: JieLi AC79 SDK (pinned tag)
+        run: git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+      - name: Host checks (UI, sequencer, engines)
+        continue-on-error: true
+        run: python3 tools/orbit_check.py
+      - name: Build firmware
+        run: sh build.sh
+      - name: Installer site
+        run: |
+          python3 tools/make_site.py --package build/orbit.fwsc --version 0.9.0 --out build/site \
+            --release-url "https://github.com/${{ github.repository }}/tree/${{ github.sha }}"
+          sha256sum build/orbit.fwsc | tee build/orbit.fwsc.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbit-cow
+          path: |
+            build/orbit.fwsc
+            build/orbit.fwsc.sha256
+            build/site/**
+            build/felucca.dis

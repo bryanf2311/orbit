@@ -58,6 +58,13 @@ def main():
                 op = data.get('op', 'render')
                 if op == 'button':
                     command = f"button {BUTTONS[data['button']]}"
+                elif op in ('down', 'up'):
+                    command = f"{op} {BUTTONS[data['button']]}"
+                elif op == 'wait':
+                    ms = int(data['ms'])
+                    if not 0 < ms <= 5000:
+                        raise ValueError('invalid wait')
+                    command = f'wait {ms}'
                 elif op == 'knob':
                     role = int(data['role']); delta = int(data['delta'])
                     if not 0 <= role < 7 or not -64 <= delta <= 64:

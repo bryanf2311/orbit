@@ -1070,10 +1070,11 @@ static void layer_screen_draw(void)
 /* HOLD to confirm: a ring fills while REC (clear the track) or SAVE (save the project) is held */
 #define HOLD_CLEAR_MS 1300u                             /* after the 0.7 s that make REC a hold */
 #define HOLD_SAVE_MS 1000u
+#define HOLD_NEW_MS 1500u                               /* REC + SAVE: a new project */
 static void hold_screen_draw(void)
 {
     static uint32_t cache;
-    uint32_t span = ui.hold_kind == 1u ? HOLD_CLEAR_MS : HOLD_SAVE_MS, el = fm1_ms - ui.hold_t0;
+    uint32_t span = ui.hold_kind == 1u ? HOLD_CLEAR_MS : ui.hold_kind == 3u ? HOLD_NEW_MS : HOLD_SAVE_MS, el = fm1_ms - ui.hold_t0;
     int32_t ratio = el >= span ? 1000 : (int32_t)(el * 1000u / span);
     uint32_t sig = ui.hold_kind * 7u + (uint32_t)ratio / 20u + ui.hold_trk * 131u;
     char b[24];
@@ -1086,13 +1087,13 @@ static void hold_screen_draw(void)
         return;
     cache = sig;
     cv_begin(240, 124, C_BLACK);
-    cv_text(120 - text_w(&FONT_L, ui.hold_kind == 1u ? "clear" : "save") / 2, 4, &FONT_L,
-            ui.hold_kind == 1u ? "clear" : "save", ui.hold_kind == 1u ? TE_RED : C_WHITE);
+    cv_text(120 - text_w(&FONT_L, ui.hold_kind == 1u ? "clear" : ui.hold_kind == 3u ? "new" : "save") / 2, 4, &FONT_L,
+            ui.hold_kind == 1u ? "clear" : ui.hold_kind == 3u ? "new" : "save", ui.hold_kind != 2u ? TE_RED : C_WHITE);
     {   /* the ring: 36 px, 7 thick, filling clockwise from the top */
         int32_t a, rr, end = ratio * 1024 / 1000;
         for (a = 0; a < 1024; a += 2) {
             int32_t co = SINE[((uint32_t)a + 768u) & 1023u], si = SINE[(uint32_t)a & 1023u];   /* from 12 o'clock */
-            uint16_t c = a <= end ? (ui.hold_kind == 1u ? TE_RED : C_WHITE) : TE_G2;
+            uint16_t c = a <= end ? (ui.hold_kind != 2u ? TE_RED : C_WHITE) : TE_G2;
             for (rr = 30; rr <= 36; rr++)
                 cv_pset(120 + ((si * rr) >> 15), 80 + ((co * rr) >> 15), c);
         }
@@ -1102,6 +1103,8 @@ static void hold_screen_draw(void)
     if (ui.hold_kind == 1u) {
         str_cpy(b, "track 1", sizeof b);
         b[6] = (char)('1' + ui.hold_trk);
+    } else if (ui.hold_kind == 3u) {
+        str_cpy(b, "erase all 4 tracks", sizeof b);
     } else {
         str_cpy(b, "project in slot 1", sizeof b);
         b[16] = (char)('0' + clamp(song.g[G_SLOT], 1, 4));

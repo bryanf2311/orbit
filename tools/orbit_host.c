@@ -16,6 +16,9 @@ int main(int argc, char **argv)
     while(fgets(cmd,sizeof cmd,stdin)) {
         a=b=0;
         if(sscanf(cmd,"button %d",&a)==1 && a>=0 && a<NB) tap((uint32_t)a);
+        else if(sscanf(cmd,"down %d",&a)==1 && a>=0 && a<NB) press((uint32_t)a);      /* hold a button */
+        else if(sscanf(cmd,"up %d",&a)==1 && a>=0 && a<NB) release((uint32_t)a);
+        else if(sscanf(cmd,"wait %d",&a)==1 && a>0) frames((uint32_t)a/16u+1u);          /* ms of UI frames */
         else if(sscanf(cmd,"knob %d %d",&a,&b)==2 && a>=0 && a<NE) { encs[panel.enc[a]]=clamp(b,-64,64); frame(); }
         else if(sscanf(cmd,"render %d %d",&a,&b)==2) {
             int32_t mix[CTL*2]; uint32_t n=(uint32_t)clamp(a,CTL,FS)/CTL*CTL;

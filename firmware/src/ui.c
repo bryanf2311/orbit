@@ -78,7 +78,7 @@ static struct {
     uint32_t step_sess;          /* SEQ layer: the undo session of this hold */
     uint8_t lock_par;            /* SEQ layer, a step held + KNOB 4: the parameter it locks (the last sound
                                   * parameter a knob changed on a page of the selected track; P_ED_FLT at boot) */
-    uint8_t hold_kind;           /* a hold to confirm: 1 = clear the track (REC), 2 = save (SAVE) */
+    uint8_t hold_kind;           /* a hold to confirm: 1 = clear the track (REC), 2 = save (SAVE), 3 = new project (REC + SAVE) */
     uint32_t hold_t0;            /* (ms) */
     uint8_t hold_trk;
     uint32_t tap_ms[4];          /* tap tempo: the last taps */

@@ -22,9 +22,10 @@ static void orbit_module_strip(uint32_t active)
 }
 static void orbit_sound_draw(void)
 {
-    static uint32_t cache;
+    static uint32_t cache,cow_phase;
     const page_t *pg=cur_page();
     const engine_t *engine=ENGINES[TSEL->eng_req%NENGINES];
+    uint32_t cow=pg->graph==GR_FX||pg->graph==GR_CDLY||pg->graph==GR_CREV,phase=cow?fm1_ms/60u:0u,strip_only=0;
     int lfo_off = !TSEL->p[P_LD_PIT] && !TSEL->p[P_LD_FLT] && !TSEL->p[P_LD_SHP] && !TSEL->p[P_LD_AMP];
     const param_desc_t *desc[4];
     char value[4][16], label[4][8], small[8], title[24];
@@ -43,8 +44,12 @@ static void orbit_sound_draw(void)
     sig=sig*31u+ui.msg_t+ui.hot_t+ui.hot_col;
     if(pg->fam==FAM_LFO) sig=sig*31u+(uint32_t)lfo_off;
     sig=sig*31u+(uint32_t)batt_shown();
-    if(!ui.force && sig==cache) return;
-    cache=sig;
+    if(!ui.force && sig==cache) {
+        if(!cow || phase==cow_phase) return;         /* the COW pages: only the picture moves */
+        strip_only=1;
+    }
+    cache=sig; cow_phase=phase;
+    if(!strip_only) {
     cv_begin(240,36,C_BLACK);
     str_cpy(title,pg->scope==SC_ENGINE ? engine->name : pg->fam==FAM_LFO ?
             (pg->id[0]==P_LSYNC ? "LFO SYNC 2/3" : pg->graph==GR_LFO ? "LFO SOURCE 1/3" : "LFO DEST 3/3") :
@@ -60,6 +65,7 @@ static void orbit_sound_draw(void)
     } else orbit_module_strip(orbit_module_of(pg));
     cv_blit(0,0);
     lcd_fill(0,36,240,4,C_BLACK);
+    }
     cv_begin(240,124,C_BLACK);
     if(pg->graph==GR_ADSR) {
         int32_t a=16+ratio[0]*45/1000,d=a+16+ratio[1]*45/1000,y=108-ratio[2]*86/1000;
@@ -87,15 +93,13 @@ static void orbit_sound_draw(void)
             cv_line(cx,cy,cx+((SINE[(angle+256)&1023]*r)>>15),cy+((SINE[angle]*r)>>15),TE_COL[k]);
             te_disc(cx,cy,3,C_WHITE);
         }
-    } else if(pg->graph==GR_FX) {
-        /* T3 effect: 네 send(DST CHO DLY REV)를 encoder 색의 얇은 세로 게이지로 그린다. 파라미터 값이며 오디오 측정이 아니다 */
-        for(k=0;k<4;k++) {
-            int32_t gx=30+(int32_t)k*60,h=ratio[k]*88/1000;
-            cv_rect(gx,16,1,92,TE_G2);
-            if(h) cv_rect(gx,108-h,1,h,TE_COL[k]);
-            cv_rect(gx-8,108-h,17,1,TE_COL[k]);
-        }
-        cv_line(12,110,228,110,TE_G2);
+    } else if(cow) {
+        /* COW FX pages: the settings drawn as a cow (ui_cow.c); parameter values, not an audio measurement */
+        cv_oy=12;
+        if(pg->graph==GR_FX) graph_cow_fx(TSEL,TE_COL[song.sel&3u]);
+        else if(pg->graph==GR_CDLY) graph_cow_dly(TSEL,TE_COL[0]);
+        else graph_cow_rev(TSEL,TE_COL[1]);
+        cv_oy=0;
     } else {
         /* Four coloured oscillator curves, driven by the active page values. */
         for(k=0;k<4;k++) {
@@ -108,6 +112,7 @@ static void orbit_sound_draw(void)
         }
     }
     cv_blit(0,40);
+    if(strip_only) return;
     cv_begin(240,32,C_BLACK);
     for(k=0;k<4;k++) { te_dial(30+k*60,16,13,ratio[k],TE_COL[k],TE_DIM[k]); }
     cv_blit(0,164);
